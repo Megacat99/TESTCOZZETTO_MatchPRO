@@ -56,6 +56,10 @@ uvicorn main:app --reload (in caso lo vogliate aprire in locale con cli)
 Una volta avviato il server, apri il browser all'indirizzo:
 http://127.0.0.1:8000/
 
+se non si vuole avviare il server potrete utilizzare onrender
+
+https://matchpro-m89n.onrender.com
+
 # 📂 Struttura dei File
 
     main.py: Punto di ingresso del server FastAPI, contiene tutta la logica API e la gestione del database.
