@@ -49,7 +49,7 @@ Le dipendenze principali includono fastapi, uvicorn, e pydantic.
 
 Per avviare il backend e rendere l'interfaccia accessibile sulla tua rete locale:
 
-uvicorn main:app --reload
+uvicorn main:app --reload (in caso lo vogliate aprire in locale con cli)
 
 4. Accesso al Sito
 
