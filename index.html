@@ -22,6 +22,201 @@
         <h3 style="color:var(--neon-lime)">CLASSIFICA SQUADRE</h3>
         <div id="teamStats"></div>
     </div>
+
+    <div class="col" id="matchesContainer"></div>
+
+    <div class="col">
+        <h3 style="color:var(--neon-pink)">TOP MARCATORI</h3>
+        <div id="playerStats"></div>
+    </div>
+
+    <div class="footer-charts">
+        <div class="chart-container"><canvas id="c1"></canvas></div>
+        <div style="text-align:center">
+            <div style="font-size:12px; opacity:0.6; font-weight:800; letter-spacing:2px;">GOL TOTALI</div>
+            <div id="total" style="font-size:4rem; font-weight:900; color:var(--accent); text-shadow: 0 0 10px var(--accent);">0</div>
+        </div>
+        <div class="chart-container"><canvas id="c2"></canvas></div>
+    </div>
+</div>
+
+<div id="mMatch" class="modal">
+    <div class="modal-content">
+        <h3 id="mTitle" style="color:var(--accent)">GESTIONE MATCH</h3>
+        <input type="number" id="p_id" placeholder="ID Partita">
+        <input type="text" id="p_casa" placeholder="Squadra Casa">
+        <input type="text" id="p_ospite" placeholder="Squadra Ospite">
+        <input type="text" id="p_stadio" placeholder="Stadio">
+        <input type="date" id="p_data">
+        <input type="time" id="p_ora">
+        <button onclick="saveMatch()" style="width:100%; padding:15px; background:var(--accent); border:none; border-radius:10px; font-weight:800; cursor:pointer">SALVA PARTITA</button>
+        <button onclick="closeModals()" style="width:100%; background:none; color:var(--text); border:none; margin-top:10px; cursor:pointer">Annulla</button>
+    </div>
+</div>
+
+<div id="mGoal" class="modal">
+    <div class="modal-content">
+        <h3 style="color:var(--neon-lime)">NUOVO GOL</h3>
+        <input type="text" id="g_player" placeholder="Nome Marcatore">
+        <input type="number" id="g_min" placeholder="Minuto">
+        <select id="g_team"><option value="casa">CASA</option><option value="ospite">OSPITE</option></select>
+        <button onclick="saveGoal()" style="width:100%; padding:15px; background:var(--neon-lime); border:none; border-radius:10px; font-weight:800; cursor:pointer">REGISTRA</button>
+        <button onclick="closeModals()" style="width:100%; background:none; color:var(--text); border:none; margin-top:10px; cursor:pointer">Chiudi</button>
+    </div>
+</div>
+
+<script>
+    const API = window.location.origin;
+    let charts = {};
+    let activeId = null;
+    Chart.register(ChartDataLabels);
+
+    // Generatore di colori neon ad alto contrasto
+    function getDynamicColor(name) {
+        const colors = ['#00f2ff', '#ff00ff', '#39ff14', '#ffcc00', '#ff4757', '#70a1ff', '#be2edd', '#1abc9c', '#e67e22'];
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        return colors[Math.abs(hash) % colors.length];
+    }
+
+    function toggleTheme() {
+        const root = document.documentElement;
+        root.setAttribute('data-theme', root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+        refresh();
+    }
+
+    async function refresh() {
+        const r = await fetch(`${API}/partite`);
+        const data = await r.json();
+
+        document.getElementById('matchesContainer').innerHTML = data.map(p => `
+            <div class="match-card">
+                <span class="stadium-tag">🏟️ ${p.stadio} — ${p.data}</span>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <span class="club-tag" style="background:${getDynamicColor(p.casa)}">${p.casa}</span>
+                    <span class="score">${p.score_casa}:${p.score_ospite}</span>
+                    <span class="club-tag" style="background:${getDynamicColor(p.ospite)}">${p.ospite}</span>
+                </div>
+                <div style="margin-bottom:20px;">
+                    ${p.gol.map(g => `
+                        <div style="display:flex; justify-content:${g.squadra === 'casa' ? 'flex-start' : 'flex-end'}; margin:5px 0;">
+                            <div style="font-size:12px; background:rgba(128,128,128,0.1); padding:5px 10px; border-radius:6px; border-left:3px solid ${g.squadra === 'casa' ? '#00f2ff' : '#ff00ff'}">
+                                <b>${g.minuto}'</b> ${g.marcatore} <span onclick="delGoal(${g.id})" style="color:var(--del); cursor:pointer; margin-left:8px; font-weight:bold;">×</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button class="club-tag" style="background:var(--accent); border:none; flex:1; cursor:pointer" onclick="openGoalModal(${p.id})">+ GOL</button>
+                    <button class="club-tag" style="background:var(--neon-gold); border:none; cursor:pointer" onclick="editMatch(${JSON.stringify(p).replace(/"/g, '&quot;')})">EDIT</button>
+                    <button class="club-tag" style="background:var(--del); border:none; cursor:pointer" onclick="delMatch(${p.id})">🗑️</button>
+                </div>
+            </div>
+        `).join('');
+
+        updateStats(data);
+    }
+
+    function updateStats(data) {
+        let teams = {}, players = {}, total = 0;
+        data.forEach(p => p.gol.forEach(g => {
+            total++;
+            let tName = g.squadra === 'casa' ? p.casa : p.ospite;
+            teams[tName] = (teams[tName] || 0) + 1;
+            players[g.marcatore] = (players[g.marcatore] || 0) + 1;
+        }));
+
+        document.getElementById('total').innerText = total;
+
+        // Rendering Classifiche
+        document.getElementById('teamStats').innerHTML = Object.entries(teams).sort((a,b)=>b[1]-a[1]).map(e => `
+            <div class="stat-row"><span>${e[0]}</span><b>${e[1]}</b></div>
+        `).join('');
+
+        document.getElementById('playerStats').innerHTML = Object.entries(players).sort((a,b)=>b[1]-a[1]).map(e => `
+            <div class="stat-row"><span>${e[0]}</span><b>${e[1]}</b></div>
+        `).join('');
+
+        renderCharts(teams, players, total);
+    }
+
+    function renderCharts(t, p, total) {
+        const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+        const labelColor = isDark ? '#ffffff' : '#000000';
+        const bgLabel = isDark ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.8)';
+
+        const config = (l, d) => ({
+            type: 'doughnut',
+            data: { labels: l, datasets: [{ data: d, backgroundColor: l.map(n => getDynamicColor(n)), borderWidth: 0 }] },
+            options: {
+                maintainAspectRatio: false, cutout: '70%',
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        color: labelColor, backgroundColor: bgLabel, borderRadius: 4, padding: 6, font: { weight: 'bold', size: 10 },
+                        formatter: (v, ctx) => total > 0 ? `${ctx.chart.data.labels[ctx.dataIndex]}\n${((v/total)*100).toFixed(0)}%` : ''
+                    }
+                }
+            }
+        });
+
+        if(charts.c1) charts.c1.destroy(); if(charts.c2) charts.c2.destroy();
+        charts.c1 = new Chart(document.getElementById('c1'), config(Object.keys(t), Object.values(t)));
+        charts.c2 = new Chart(document.getElementById('c2'), config(Object.keys(p), Object.values(p)));
+    }
+
+    // GESTIONE DATI (Logica Originale)
+    function openMatchModal() { activeId = null; document.getElementById('mTitle').innerText="NUOVA PARTITA"; document.getElementById('mMatch').style.display='flex'; }
+    function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display='none'); }
+    function editMatch(p) {
+        activeId = p.id; document.getElementById('mTitle').innerText="MODIFICA PARTITA";
+        document.getElementById('p_id').value = p.id; document.getElementById('p_casa').value = p.casa;
+        document.getElementById('p_ospite').value = p.ospite; document.getElementById('p_stadio').value = p.stadio;
+        document.getElementById('p_data').value = p.data; document.getElementById('p_ora').value = p.orario;
+        document.getElementById('mMatch').style.display='flex';
+    }
+    async function saveMatch() {
+        const p = { id_p: parseInt(document.getElementById('p_id').value), casa: document.getElementById('p_casa').value, ospite: document.getElementById('p_ospite').value, stadio: document.getElementById('p_stadio').value, data: document.getElementById('p_data').value, orario: document.getElementById('p_ora').value };
+        await fetch(`${API}/partite`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p) });
+        closeModals(); refresh();
+    }
+    function openGoalModal(id) { activeId = id; document.getElementById('mGoal').style.display='flex'; }
+    async function saveGoal() {
+        const g = { marcatore: document.getElementById('g_player').value, minuto: parseInt(document.getElementById('g_min').value), squadra: document.getElementById('g_team').value };
+        await fetch(`${API}/partite/${activeId}/gol`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(g) });
+        closeModals(); refresh();
+    }
+    async function delGoal(id) { if(confirm("Eliminare gol?")) { await fetch(`${API}/gol/${id}`, {method:'DELETE'}); refresh(); } }
+    async function delMatch(id) { if(confirm("Eliminare intero match?")) { await fetch(`${API}/partite/${id}`, {method:'DELETE'}); refresh(); } }
+
+    refresh(); // Caricamento iniziale unico (senza intervallo fastidioso)
+</script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>MatchPRO // TOTAL CONTROL</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<nav>
+    <div style="font-weight:800; color:var(--accent); font-size:1.5rem; letter-spacing:1px;">MATCHPRO<span style="color:var(--neon-pink)">.</span>IO</div>
+    <button onclick="toggleTheme()" class="club-tag" style="background:var(--accent); cursor:pointer; border:none; color:black; padding:10px 20px;">SWITCH THEME</button>
+</nav>
+
+<button class="fab" onclick="openMatchModal()">+</button>
+
+<div class="main-grid">
+    <div class="col">
+        <h3 style="color:var(--neon-lime)">CLASSIFICA SQUADRE</h3>
+        <div id="teamStats"></div>
+    </div>
     
     <div class="col" id="matchesContainer"></div>
     
