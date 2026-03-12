@@ -6,12 +6,13 @@ from pydantic import BaseModel
 import sqlite3
 import os
 
-# Configurazione percorsi
+# Configurazione percorsi assoluti per Render
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_NAME = os.path.join(BASE_DIR, "aura_db.sqlite")
 
 app = FastAPI()
 
+# Middleware CORS per permettere al tuo HTML di comunicare con il Python
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,6 +28,7 @@ class GolIn(BaseModel):
 
 @app.get("/")
 async def read_index():
+    # Serve il tuo file index.html originale
     return FileResponse(os.path.join(BASE_DIR, 'index.html'))
 
 @app.get("/partite")
@@ -34,10 +36,11 @@ async def get_all():
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    # Crea tabelle se non esistono
+
+    # Crea tabelle se non esistono (per sicurezza al primo avvio)
     c.execute("CREATE TABLE IF NOT EXISTS partite (id INTEGER PRIMARY KEY, casa TEXT, ospite TEXT, orario TEXT, data TEXT, stadio TEXT)")
     c.execute("CREATE TABLE IF NOT EXISTS gol (id INTEGER PRIMARY KEY AUTOINCREMENT, partita_id INTEGER, marcatore TEXT, minuto INTEGER, squadra TEXT)")
-    
+
     c.execute("SELECT * FROM partite ORDER BY data DESC")
     partite = [dict(row) for row in c.fetchall()]
     for p in partite:
@@ -51,7 +54,7 @@ async def get_all():
 @app.post("/partite/{id_p}/gol")
 async def add_goal(id_p: int, g: GolIn):
     conn = sqlite3.connect(DB_NAME); c = conn.cursor()
-    c.execute("INSERT INTO gol (partita_id, marcatore, minuto, squadra) VALUES (?,?,?,?)", 
+    c.execute("INSERT INTO gol (partita_id, marcatore, minuto, squadra) VALUES (?,?,?,?)",
               (id_p, g.marcatore.upper(), g.minuto, g.squadra))
     conn.commit(); conn.close()
     return {"status": "success"}
@@ -59,7 +62,7 @@ async def add_goal(id_p: int, g: GolIn):
 @app.post("/partite")
 async def add_match(p: PartitaIn):
     conn = sqlite3.connect(DB_NAME); c = conn.cursor()
-    c.execute("INSERT OR REPLACE INTO partite (id, casa, ospite, orario, data, stadio) VALUES (?,?,?,?,?,?)", 
+    c.execute("INSERT OR REPLACE INTO partite (id, casa, ospite, orario, data, stadio) VALUES (?,?,?,?,?,?)",
               (p.id_p, p.casa.upper(), p.ospite.upper(), p.orario, p.data, p.stadio.upper()))
     conn.commit(); conn.close()
     return {"status": "success"}
@@ -67,11 +70,17 @@ async def add_match(p: PartitaIn):
 @app.delete("/partite/{id}")
 async def delete_match(id: int):
     conn = sqlite3.connect(DB_NAME); c = conn.cursor()
-    # Elimina i gol associati prima di eliminare la partita
     c.execute("DELETE FROM gol WHERE partita_id = ?", (id,))
     c.execute("DELETE FROM partite WHERE id = ?", (id,))
     conn.commit(); conn.close()
     return {"status": "deleted"}
 
-# Monta i file statici DOPO le rotte per evitare che coprano l'API
+@app.delete("/gol/{id}")
+async def delete_goal(id: int):
+    conn = sqlite3.connect(DB_NAME); c = conn.cursor()
+    c.execute("DELETE FROM gol WHERE id = ?", (id,))
+    conn.commit(); conn.close()
+    return {"status": "deleted"}
+
+# Monta la cartella static dove tieni il file style.css
 app.mount("/static", StaticFiles(directory=BASE_DIR), name="static")
