@@ -5,8 +5,10 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import sqlite3
 from fastapi.responses import FileResponse
+import os
 
-
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_NAME = os.path.join(BASE_DIR, "aura_db.sqlite")
 
 app = FastAPI()
 
