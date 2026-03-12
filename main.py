@@ -4,30 +4,34 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import sqlite3
-from fastapi.responses import FileResponse
 import os
 
+# 1. PERCORSO CORRETTO PER IL CLOUD
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_NAME = os.path.join(BASE_DIR, "aura_db.sqlite")
 
 app = FastAPI()
 
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware, 
+    allow_origins=["*"], 
+    allow_methods=["*"], 
+    allow_headers=["*"]
+)
 
-DB_NAME = "aura_db.sqlite"
-
+# Definizione schemi
 class PartitaIn(BaseModel):
     id_p: int; casa: str; ospite: str; orario: str; data: str; stadio: str
 
 class GolIn(BaseModel):
     marcatore: str; minuto: int; squadra: str
 
-    app.mount("/static", StaticFiles(directory="."), name="static")
+# 2. CORRETTA INDENTAZIONE (deve stare fuori dalle classi)
+app.mount("/static", StaticFiles(directory="."), name="static")
 
 @app.get("/")
 async def read_index():
     return FileResponse('index.html')
-
 
 @app.get("/partite")
 async def get_all():
@@ -45,7 +49,7 @@ async def get_all():
 
 @app.post("/partite/{id_p}/gol")
 async def add_goal(id_p: int, g: GolIn):
-    if not (1 <= g.minuto <= 120): # VALIDAZIONE
+    if not (1 <= g.minuto <= 120):
         raise HTTPException(status_code=400, detail="Minuto non valido")
     conn = sqlite3.connect(DB_NAME); c = conn.cursor()
     c.execute("INSERT INTO gol (partita_id, marcatore, minuto, squadra) VALUES (?,?,?,?)", 
@@ -61,12 +65,17 @@ async def delete_goal(id: int):
     return {"status": "deleted"}
 
 @app.post("/partite")
-async def save_match(p: PartitaIn):
+async def add_match(p: PartitaIn):
     conn = sqlite3.connect(DB_NAME); c = conn.cursor()
-    c.execute("INSERT OR REPLACE INTO partite VALUES (?,?,?,?,?,?)", (p.id_p, p.casa.upper(), p.ospite.upper(), p.orario, p.data, p.stadio.upper()))
+    c.execute("""INSERT OR REPLACE INTO partite (id, casa, ospite, orario, data, stadio) 
+                 VALUES (?,?,?,?,?,?)""", (p.id_p, p.casa.upper(), p.ospite.upper(), p.orario, p.data, p.stadio.upper()))
     conn.commit(); conn.close()
     return {"status": "success"}
 
-@app.get("/")
-async def read_index():
-    return FileResponse('index.html')
+@app.delete("/partite/{id}")
+async def delete_match(id: int):
+    conn = sqlite3.connect(DB_NAME); c = conn.cursor()
+    c.execute("DELETE FROM partite WHERE id = ?", (id,))
+    c.execute("DELETE FROM gol WHERE partita_id = ?", (id,))
+    conn.commit(); conn.close()
+    return {"status": "deleted"}
