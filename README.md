@@ -1,7 +1,8 @@
 # ⚽ MatchPRO.IO PROGETTO COZZETTO
 
 MatchPRO.IO è una piattaforma di gestione e analisi delle partite di calcio con un'interfaccia futuristica in stile Cyberpunk/Neon. Il sistema permette di registrare partite, marcatore per marcatore, fornendo statistiche in tempo reale e grafici interattivi.
-🚀 Caratteristiche Principali
+
+# 🚀 Caratteristiche Principali
 
     Gestione Match: Inserimento, modifica ed eliminazione di partite con dettagli su stadio, data e orario.
 
@@ -13,8 +14,7 @@ MatchPRO.IO è una piattaforma di gestione e analisi delle partite di calcio con
 
     Design Reattivo: Supporto nativo per Dark Mode e Light Mode con estetica ad alto contrasto.
 
-🛠️ Stack Tecnologico
-Backend
+# Backend
 
     Python 3.x
 
@@ -24,7 +24,7 @@ Backend
 
     Pydantic: Validazione dei dati tramite schemi definiti.
 
-Frontend
+# Frontend
 
     HTML5 / CSS3: Layout a griglia con variabili CSS dinamiche.
 
@@ -32,7 +32,7 @@ Frontend
 
     Chart.js: Libreria per la visualizzazione dei dati statistici. (è uno script dentro l'html)
 
-📦 Installazione e Utilizzo
+# 📦 Installazione e Utilizzo
 1. Prerequisiti
 
 Assicurati di avere Python installato sul tuo sistema.
@@ -55,7 +55,8 @@ uvicorn main:app --reload
 
 Una volta avviato il server, apri il browser all'indirizzo:
 http://127.0.0.1:8000/
-📂 Struttura dei File
+
+# 📂 Struttura dei File
 
     main.py: Punto di ingresso del server FastAPI, contiene tutta la logica API e la gestione del database.
 
@@ -67,7 +68,7 @@ http://127.0.0.1:8000/
 
     requirements.txt: Elenco delle librerie Python richieste.
 
-📊 Database Schema
+# 📊 Database Schema
 
 L'applicazione utilizza due tabelle principali:
 
