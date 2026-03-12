@@ -35,3 +35,19 @@ nav { padding: 15px 40px; display: flex; justify-content: space-between; align-i
 .modal-content { background: var(--panel); padding: 30px; border-radius: 20px; border: 2px solid var(--accent); width: 360px; }
 input, select { width: 100%; padding: 12px; margin: 10px 0; background: #111; border: 1px solid var(--border); color: white; border-radius: 8px; font-weight: 600; }
 [data-theme="light"] input, [data-theme="light"] select { background: #fff; color: #000; }
+
+input, select { 
+    width: 100%; 
+    padding: 12px; 
+    margin: 10px 0; 
+    background: #111; 
+    border: 1px solid var(--border); 
+    color: white; 
+    border-radius: 8px; 
+    font-weight: 600; 
+}
+
+[data-theme="light"] input, [data-theme="light"] select { 
+    background: #fff; 
+    color: #000; 
+}
