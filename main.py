@@ -6,6 +6,55 @@ from pydantic import BaseModel
 import sqlite3
 import os
 
+# Usa il percorso assoluto rigoroso
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_NAME = os.path.join(BASE_DIR, "aura_db.sqlite")
+
+app = FastAPI()
+
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+class PartitaIn(BaseModel):
+    id_p: int; casa: str; ospite: str; orario: str; data: str; stadio: str
+
+class GolIn(BaseModel):
+    marcatore: str; minuto: int; squadra: str
+
+# Spostiamo il mount dei file statici DOPO le rotte API per evitare conflitti
+@app.get("/")
+async def read_index():
+    return FileResponse(os.path.join(BASE_DIR, 'index.html'))
+
+@app.get("/partite")
+async def get_all():
+    # Verifica esistenza file prima di connettersi
+    if not os.path.exists(DB_NAME):
+        return [{"error": f"Database non trovato in {DB_NAME}"}]
+    
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM partite ORDER BY data DESC")
+    partite = [dict(row) for row in c.fetchall()]
+    for p in partite:
+        c.execute("SELECT * FROM gol WHERE partita_id = ? ORDER BY minuto ASC", (p['id'],))
+        p['gol'] = [dict(g) for g in c.fetchall()]
+        p['score_casa'] = sum(1 for g in p['gol'] if g['squadra'] == 'casa')
+        p['score_ospite'] = sum(1 for g in p['gol'] if g['squadra'] == 'ospite')
+    conn.close()
+    return partite
+
+# Le altre rotte (add_goal, save_match, ecc.) rimangono invariate come nel main.py originale
+# Assicurati solo che usino la variabile DB_NAME definita sopra.
+
+app.mount("/static", StaticFiles(directory=BASE_DIR), name="static")from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+import sqlite3
+import os
+
 # 1. PERCORSO CORRETTO PER IL CLOUD
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_NAME = os.path.join(BASE_DIR, "aura_db.sqlite")
