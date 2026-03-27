@@ -72,12 +72,18 @@
     Chart.register(ChartDataLabels);
 
     // Generatore di colori neon ad alto contrasto
-    function getDynamicColor(name) {
-        const colors = ['#00f2ff', '#ff00ff', '#39ff14', '#ffcc00', '#ff4757', '#70a1ff', '#be2edd', '#1abc9c', '#e67e22'];
-        let hash = 0;
-        for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-        return colors[Math.abs(hash) % colors.length];
+function getDynamicColor(name) {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
     }
+    const hue = Math.abs(hash * 137.5) % 360;
+    const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+    const saturation = isDark ? 90 : 75;
+    const lightness = isDark ? 65 : 45;
+
+    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+}
 
     function toggleTheme() {
         const root = document.documentElement;
